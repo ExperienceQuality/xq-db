@@ -1,0 +1,10 @@
+create role routine_migrator  login password 'routine_migrator_test';
+create role exercise_migrator login password 'exercise_migrator_test';
+create role routine_app       login password 'routine_app_test';
+create role exercise_app      login password 'exercise_app_test';
+alter role routine_app  set search_path to routine;
+alter role exercise_app set search_path to exercise;
+revoke all on database xq from public;
+grant connect on database xq to routine_migrator, exercise_migrator, routine_app, exercise_app;
+grant create on database xq to routine_migrator, exercise_migrator;
+revoke all on schema public from public;

@@ -1,0 +1,13 @@
+# Flyway 13: schemas live under [environments.*], not [flyway].
+# Connection URL/user/password come from FLYWAY_* env / CLI (CI + migrate-prod).
+[environments.default]
+schemas = ["exercise"]
+
+[flyway]
+environment = "default"
+locations = ["filesystem:migrations/exercise"]
+defaultSchema = "exercise"
+createSchemas = false
+table = "flyway_schema_history"
+cleanDisabled = true
+validateMigrationNaming = true

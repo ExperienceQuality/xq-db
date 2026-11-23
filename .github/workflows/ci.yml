@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Guard and migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Lint migrations
+        run: bash scripts/lint-migrations.sh
+      - name: Build and verify throwaway xq database
+        run: bash scripts/build-db.sh
+      - name: Tear down
+        if: always()
+        run: docker rm -f xq-db-ci
