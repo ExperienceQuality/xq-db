@@ -1,0 +1,45 @@
+name: Publish image
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-image
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish migrated Postgres test image
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Build migrated database
+        run: bash scripts/build-db.sh
+      - name: Dump xq
+        run: docker exec xq-db-ci pg_dump -U postgres -d xq --schema=routine --schema=exercise > image/initdb/10-xq.sql
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build, smoke-test and push
+        env:
+          IMAGE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: bash scripts/publish-image.sh "$IMAGE_SHA" --push
+      - name: Tear down
+        if: always()
+        run: docker rm -f xq-db-ci xq-db-image-smoke || true
