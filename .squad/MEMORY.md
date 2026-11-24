@@ -12,7 +12,7 @@ This file holds canonical, human-readable knowledge for the repository. Update i
 - `image/initdb/00-roles.sql` — test-only roles (`*_test` passwords); `10-xq.sql` gitignored dump from CI
 - `scripts/lint-migrations.sh` — naming + forbidden DDL
 - `scripts/build-db.sh` — throwaway `postgres:18.7-bookworm` + Flyway verify on localhost:5432
-- `scripts/publish-image.sh` — build/smoke (optional `--push`) after `10-xq.sql` exists
+- `scripts/publish-image.sh` — build/smoke (optional `--push`) after `10-xq.sql` exists; tags `$PG_VERSION-<sha>` + `$PG_VERSION-latest`
 - `scripts/migrate-prod.sh` — guard → Flyway on Neon direct host (rejects `-pooler`)
 - `.github/workflows/ci.yml` — PR/main CI; never talks to Neon
 - `.github/workflows/publish-image.yml` — after CI on `main` (or dispatch)

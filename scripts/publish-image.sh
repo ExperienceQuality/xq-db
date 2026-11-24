@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Usage: publish-image.sh <git-sha> [--push]. Needs image/initdb/10-xq.sql (build-db.sh + pg_dump).
+# Tags: $PG_VERSION-<sha> (immutable) and $PG_VERSION-latest (floating).
 set -euo pipefail
 source versions.env
-TAG="ghcr.io/experiencequality/xq-db-postgres:$PG_VERSION-$1"
+REPO="ghcr.io/experiencequality/xq-db-postgres"
+TAG="$REPO:$PG_VERSION-$1"
+LATEST="$REPO:$PG_VERSION-latest"
 S=xq-db-image-smoke
-docker build --build-arg PG_VERSION="$PG_VERSION" -t "$TAG" image
+docker build --build-arg PG_VERSION="$PG_VERSION" -t "$TAG" -t "$LATEST" image
 docker rm -f "$S" >/dev/null 2>&1 || true
 docker run -d --name "$S" -e POSTGRES_PASSWORD=smoke "$TAG"
 for i in $(seq 1 90); do docker exec "$S" pg_isready -h 127.0.0.1 -U postgres -d xq >/dev/null 2>&1 && break; sleep 1; done
@@ -16,6 +19,11 @@ done
 docker rm -f "$S"
 if [ "$#" -ge 2 ] && [ "$2" = "--push" ]; then
   docker push "$TAG"
-  echo "Published $TAG" >> "$GITHUB_STEP_SUMMARY"
+  docker push "$LATEST"
+  {
+    echo "Published $TAG"
+    echo "Published $LATEST"
+  } >> "$GITHUB_STEP_SUMMARY"
 fi
 echo "$TAG"
+echo "$LATEST"

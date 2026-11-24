@@ -45,7 +45,7 @@ CI and scripts resolve `postgres:$PG_VERSION-bookworm` → `postgres:18.7-bookwo
 | `image/initdb/10-xq.sql` | Generated pg_dump (gitignored); baked into the image in CI |
 | `scripts/lint-migrations.sh` | Naming + forbidden DDL lint |
 | `scripts/build-db.sh` | Throwaway Postgres 18.7: roles → guard → Flyway → privilege checks |
-| `scripts/publish-image.sh` | Build/smoke-test (and optionally push) GHCR tag `18.7-<sha>` |
+| `scripts/publish-image.sh` | Build/smoke-test (and optionally push) GHCR tags `18.7-<sha>` + `18.7-latest` |
 | `scripts/migrate-prod.sh` | Guard → Flyway against Neon `xq` on the **direct** endpoint |
 
 Migrations must never create/drop/alter schemas, extensions, roles, or databases, and must never `GRANT`/`REVOKE` (lint enforces). Guards own that. Integer versions only (`V1`, `V2`, …). Flyway `clean` stays disabled.
@@ -62,11 +62,16 @@ docker rm -f xq-db-ci
 
 ## Test image (GHCR)
 
-Tag format: `ghcr.io/experiencequality/xq-db-postgres:18.7-<git-sha>`.
+Dual tags on each publish:
+
+| Tag | Meaning |
+|-----|---------|
+| `ghcr.io/experiencequality/xq-db-postgres:18.7-<git-sha>` | Immutable pin (cutovers / F2) |
+| `ghcr.io/experiencequality/xq-db-postgres:18.7-latest` | Floating tip of the 18.7 line |
 
 - TEST ONLY — fixed passwords `<role>_test`; never deploy to prod.
 - Database name `xq`. Start with `-e POSTGRES_PASSWORD=<anything>`.
-- Services pin the image tag and minimum schema version together in `src/main/resources/xq-db.properties`.
+- Services should pin the **sha** tag and minimum schema version together in `src/main/resources/xq-db.properties`; use `18.7-latest` only when a floating tip is intentional.
 - Local pull: `docker login ghcr.io` with a PAT that has `read:packages`.
 
 Published automatically after CI succeeds on `main` (`Publish image` workflow), or via `workflow_dispatch` on `main`.
@@ -83,7 +88,7 @@ Order per schema: guard → Flyway info → migrate → guard → validate → i
 ## Release flow
 
 1. PR → CI (`Guard and migrations`) on throwaway Postgres 18.7  
-2. Merge to `main` → **Publish image** pushes `ghcr.io/experiencequality/xq-db-postgres:18.7-<sha>`  
+2. Merge to `main` → **Publish image** pushes `…:18.7-<sha>` and `…:18.7-latest`  
 3. Services bump their image pin + minimum schema version  
 4. David runs **Actions → Migrate prod** against Neon `xq` (direct endpoint)
 
