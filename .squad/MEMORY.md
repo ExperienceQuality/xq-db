@@ -7,11 +7,16 @@ This file holds canonical, human-readable knowledge for the repository. Update i
 - `versions.env` — single pin: `PG_VERSION=18.7`, `FLYWAY_VERSION=13.13.0`
 - `guard/{routine,exercise}.sql` — idempotent schema + grants; must run as matching `*_migrator`
 - `flyway/{routine,exercise}.toml` — per-schema Flyway 13 TOML (`schemas` under `[environments.default]`)
-- `migrations/{routine,exercise}/` — versioned SQL only (empty until Step 2.1); no schema/extension/role/grant DDL
-- `image/initdb/00-roles.sql` — test-only roles (`*_test` passwords); `10-xq.sql` gitignored (Step 2.1 dump)
+- `migrations/{routine,exercise}/` — V1 table SQL only; no schema/extension/role/grant DDL
+- `image/Dockerfile` — TEST-ONLY GHCR image `ghcr.io/experiencequality/xq-db-postgres:18.7-<sha>`
+- `image/initdb/00-roles.sql` — test-only roles (`*_test` passwords); `10-xq.sql` gitignored dump from CI
 - `scripts/lint-migrations.sh` — naming + forbidden DDL
 - `scripts/build-db.sh` — throwaway `postgres:18.7-bookworm` + Flyway verify on localhost:5432
+- `scripts/publish-image.sh` — build/smoke (optional `--push`) after `10-xq.sql` exists
+- `scripts/migrate-prod.sh` — guard → Flyway on Neon direct host (rejects `-pooler`)
 - `.github/workflows/ci.yml` — PR/main CI; never talks to Neon
+- `.github/workflows/publish-image.yml` — after CI on `main` (or dispatch)
+- `.github/workflows/migrate-prod.yml` — `workflow_dispatch` + `production` env + confirm `migrate xq`
 
 ## Conventions
 
@@ -30,8 +35,10 @@ This file holds canonical, human-readable knowledge for the repository. Update i
 
 ## Testing strategy
 
-- Local/CI: `bash scripts/lint-migrations.sh` then `bash scripts/build-db.sh` → ends with `xq database verified`.
+- Local/CI: `bash scripts/lint-migrations.sh` then `bash scripts/build-db.sh` → `exercise/routine version: 1` then `xq database verified`.
+- Image smoke: dump schemas → `bash scripts/publish-image.sh local` → both schema versions ≥ 1.
 - Privilege asserts in `build-db.sh`: no cross-schema USAGE, no CREATE for app roles, history SELECT yes / INSERT no.
+- Exercise V1 must stay byte-identical to `xq-svc-exercice` service migration (Flyway checksum).
 
 ## Lessons
 

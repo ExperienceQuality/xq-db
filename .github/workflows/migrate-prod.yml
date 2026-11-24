@@ -1,0 +1,43 @@
+name: Migrate prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Schema to migrate
+        required: true
+        type: choice
+        options: [exercise, routine, both]
+      confirm:
+        description: Type "migrate xq" to confirm
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-prod
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Guard and Flyway against Neon xq
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'migrate xq'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      NEON_DIRECT_HOST: ${{ secrets.NEON_DIRECT_HOST }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Migrate exercise
+        if: inputs.target == 'exercise' || inputs.target == 'both'
+        env:
+          MIGRATOR_PASSWORD: ${{ secrets.EXERCISE_MIGRATOR_PASSWORD }}
+        run: bash scripts/migrate-prod.sh exercise
+      - name: Migrate routine
+        if: inputs.target == 'routine' || inputs.target == 'both'
+        env:
+          MIGRATOR_PASSWORD: ${{ secrets.ROUTINE_MIGRATOR_PASSWORD }}
+        run: bash scripts/migrate-prod.sh routine
